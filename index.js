@@ -6,21 +6,23 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
 const port = 3000;
-
 const db = [];
-const algorithm = "aes-256-ctr";
+const algorithm = "aes-256-cbc";
+const key = crypto.randomBytes(32);
+const iv = crypto.randomBytes(16);
 const encrypt = password => {
-  let cipher = crypto.createCipher(algorithm, password);
-  let encrypted = cipher.update(password, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return encrypted;
+  let cipher = crypto.createCipheriv(algorithm, Buffer.from(key), iv);
+  let encrypted = cipher.update(password);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return { iv: iv.toString("hex"), encryptedData: encrypted.toString("hex") };
 };
 
-const decrypt = word => {
-  let decipher = crypto.createDecipher(algorithm, word);
-  let deciphered = decipher.update(word, "utf8", "hex");
-  deciphered += decipher.final("utf8");
-  return deciphered;
+const decrypt = (word, iv) => {
+  let new_iv = Buffer.from(savedIV, "hex");
+  let decipher = crypto.createDecipheriv(algorithm, Buffer.from(key), new_iv);
+  let deciphered = decipher.update(word);
+  deciphered = Buffer.concat([deciphered, decipher.final()]);
+  return deciphered.toString();
 };
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -44,19 +46,24 @@ app.get("/encrypt", (req, res) => {
   res.render("encrypt");
 });
 
+app.get("/decrypt", (req, res) => {
+  res.render("decrypt");
+});
+
 app.post("/encrypt", (req, res) => {
   const { password } = req.body;
   if (password) {
-    const hashedPassword = encrypt(password);
+    const output = encrypt(password);
+    savedIV = output.iv;
     res.render("output", {
-      message: hashedPassword
+      message: output.encryptedData
     });
   }
 });
 
 app.post("/decrypt", (req, res) => {
-  const { hash } = req.body;
-  if (hash) {
+  const { password } = req.body;
+  if (password) {
     const unhashedPassword = decrypt(password);
     res.render("output", {
       message: unhashedPassword
