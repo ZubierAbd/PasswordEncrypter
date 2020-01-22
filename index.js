@@ -1,7 +1,7 @@
 const express = require("express");
 const exphbs = require("express-handlebars");
 const app = express();
-
+const path = require("path");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
@@ -10,6 +10,7 @@ const db = [];
 const algorithm = "aes-256-cbc";
 const key = crypto.randomBytes(32);
 const iv = crypto.randomBytes(16);
+
 const encrypt = password => {
   let cipher = crypto.createCipheriv(algorithm, Buffer.from(key), iv);
   let encrypted = cipher.update(password);
@@ -26,7 +27,7 @@ const decrypt = (word, iv) => {
 };
 
 app.use(bodyParser.urlencoded({ extended: true }));
-
+app.use(express.static(path.join(__dirname, "public")));
 app.use(cookieParser());
 
 app.engine(
@@ -52,24 +53,35 @@ app.get("/decrypt", (req, res) => {
 
 app.post("/encrypt", (req, res) => {
   const { password } = req.body;
-  if (password) {
+  if (password && password.length >= 1) {
     const output = encrypt(password);
     savedIV = output.iv;
     res.render("output", {
       message: output.encryptedData
     });
-  }
-});
-
-app.post("/decrypt", (req, res) => {
-  const { password } = req.body;
-  if (password) {
-    const unhashedPassword = decrypt(password);
-    res.render("output", {
-      message: unhashedPassword
+  } else {
+    res.render("failure", {
+      message: "Sorry, something went wrong."
     });
   }
 });
+
+app.post("/decrypt", (req, res, err) => {
+  const { password } = req.body;
+  if (err) {
+    res.render("failure", {
+      message: "Sorry, something went wrong"
+    });
+  } else {
+    if (password) {
+      const unhashedPassword = decrypt(password);
+      res.render("output", {
+        message: unhashedPassword
+      });
+    }
+  }
+});
+
 app.listen(port, () => {
   console.log("server is running");
 });
