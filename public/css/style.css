@@ -2,3 +2,8 @@
   background: #232323;
   color: white;
 }
+
+.lock-image {
+  border: 1px solid grey;
+  border-radius: 50%;
+}
